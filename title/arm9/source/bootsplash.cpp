@@ -157,8 +157,8 @@ void bootSplashDSi(void) {
 			swiWaitForVBlank();
 			//loadROMselectAsynch();
 			scanKeys();
-
-			if (!custom && splash.currentFrame() == 16)
+			// removed ! on custom & frame count to 2
+			if (custom && splash.currentFrame() == 2)
 				snd().playDSiBoot();
 		}
 	} else {
