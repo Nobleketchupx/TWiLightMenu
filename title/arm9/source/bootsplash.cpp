@@ -157,9 +157,9 @@ void bootSplashDSi(void) {
 			swiWaitForVBlank();
 			//loadROMselectAsynch();
 			scanKeys();
-			// removed ! on custom & frame count to 2
-			if (custom && splash.currentFrame() == 2)
-				snd().playDSiBoot();
+			// removed ! on custom & frame count to 3 and now plays title.wav
+			if (custom && splash.currentFrame() == 3)
+				snd().beginStream();
 		}
 	} else {
 		u16 pressed = 0;
