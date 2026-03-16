@@ -79,7 +79,7 @@ void bootSplashDSi(void) {
 		healthSafety.pause();
 	}
 
-	timerStart(0, ClockDivider_1024, TIMER_FREQ_1024(100), Gif::timerHandler);
+	timerStart(1, ClockDivider_1024, TIMER_FREQ_1024(100), Gif::timerHandler);
 
 	if (cartInserted && !custom) {
 		u16 *gfx[2];
