@@ -90,7 +90,7 @@ void bootSplashDSi(void) {
 			scanKeys();
 
 			// Start custom music once
-			if (custom && !musicStarted && splash.currentFrame() >= 3) {
+			if (custom && !musicStarted && splash.currentFrame() >= 1) {
 				snd().beginStream();
 				musicStarted = true;
 			}
