@@ -24,9 +24,6 @@ extern int screenBrightness;
 bool cartInserted;
 
 void bootSplashDSi(void) {
-	// u16 whiteCol = ((whiteCol>>10)&0x1f) | ((whiteCol)&((31-3*ms().blfLevel)<<5)) | (whiteCol&(31-6*ms().blfLevel))<<10 | BIT(15);
-	// toncset16(BG_GFX, 0xFFFF, 256*256);
-	// toncset16(BG_GFX_SUB, 0xFFFF, 256*256);
 
 	cartInserted = (REG_SCFG_MC != 0x11);
 
@@ -41,16 +38,16 @@ void bootSplashDSi(void) {
 	const struct tm *Time = localtime(&Raw);
 
 	strftime(currentDate, sizeof(currentDate), "%m/%d", Time);
-	const bool virtualPain = (ms().dsiSplashEasterEggs && (strcmp(currentDate, "04/01") == 0 || strcmp(currentDate, ms().getGameRegion() == 0 ? "07/21" : "08/14") == 0)); // If April Fools, or the release date of the Virtual Boy
-	const bool super = (*(u16*)(0x020000C0) == 0x334D || *(u16*)(0x020000C0) == 0x3647 || *(u16*)(0x020000C0) == 0x4353); // Slot-2 flashcard
+	const bool virtualPain = (ms().dsiSplashEasterEggs && (strcmp(currentDate, "04/01") == 0 || strcmp(currentDate, ms().getGameRegion() == 0 ? "07/21" : "08/14") == 0));
+	const bool super = (*(u16*)(0x020000C0) == 0x334D || *(u16*)(0x020000C0) == 0x3647 || *(u16*)(0x020000C0) == 0x4353);
 	const bool regularDS = (sys().isRegularDS() && !ms().oppositeSplash) || (!sys().isRegularDS() && ms().oppositeSplash);
 
 	const bool custom = ms().dsiSplash == 3;
 
 	char path[256];
 	if (virtualPain) {
-		sprintf(path, "nitro:/video/splash/virtualPain%s.gif", /*ms().wideScreen && !ms().macroMode ? "_wide" :*/ "");
-	} else if (ms().dsiSplash == 3 && access("/_nds/TWiLightMenu/extras/splashtop.gif", F_OK) == 0) {
+		sprintf(path, "nitro:/video/splash/virtualPain%s.gif", "");
+	} else if (custom && access("/_nds/TWiLightMenu/extras/splashtop.gif", F_OK) == 0) {
 		sprintf(path, "%s:/_nds/TWiLightMenu/extras/splashtop.gif", sys().isRunFromSD() ? "sd" : "fat");
 	} else if (ms().macroMode) {
 		sprintf(path, "nitro:/video/splash/gameBoy.gif");
@@ -62,113 +59,55 @@ void bootSplashDSi(void) {
 	Gif splash(path, true, true);
 
 	path[0] = '\0';
-	if (virtualPain) { // Load Virtual Pain image
+	if (virtualPain) {
 		strcpy(path, "nitro:/video/hsmsg/virtualPain.gif");
-	} else if (ms().dsiSplash == 1) { // Load "Touch the Touch Screen to continue" image
+	} else if (ms().dsiSplash == 1) {
 		sprintf(path, "nitro:/video/tttstc/%i.gif", language);
-	} else if (ms().dsiSplash == 2) { // Load H&S image
+	} else if (ms().dsiSplash == 2) {
 		sprintf(path, "nitro:/video/hsmsg/%i.gif", language);
-	} else if (ms().dsiSplash == 3 && access("/_nds/TWiLightMenu/extras/splashbottom.gif", F_OK) == 0) { // Load custom bottom image
+	} else if (custom && access("/_nds/TWiLightMenu/extras/splashbottom.gif", F_OK) == 0) {
 		sprintf(path, "%s:/_nds/TWiLightMenu/extras/splashbottom.gif", sys().isRunFromSD() ? "sd" : "fat");
 	}
 	Gif healthSafety(path, false, true);
 
-	// For the default splashes, draw first frame, then wait until the top is done
 	if (!custom) {
 		healthSafety.displayFrame();
 		healthSafety.pause();
 	}
 
+	//  FIX: move GIF to TIMER1 (avoids conflict with audio)
 	timerStart(1, ClockDivider_1024, TIMER_FREQ_1024(100), Gif::timerHandler);
-
-	if (cartInserted && !custom) {
-		u16 *gfx[2];
-		int yPos = virtualPain ? 130 : 142;
-		if (ms().macroMode && !virtualPain) {
-			yPos = 128;
-		}
-		for (int i = 0; i < 2; i++) {
-			gfx[i] = oamAllocateGfx(&oamMain, SpriteSize_64x32, SpriteColorFormat_Bmp);
-			oamSet(&oamMain, i, 67 + (i * 64), yPos, 0, 15, SpriteSize_64x32, SpriteColorFormat_Bmp, gfx[i], 0, false, false, false, false, false);
-		}
-
-		std::vector<unsigned char> image;
-		unsigned int width, height;
-		lodepng::decode(image, width, height, virtualPain ? "nitro:/graphics/nintendoPain.png" : "nitro:/graphics/nintendo.png");
-
-		for (unsigned int i = 0, y = 0, x = 0;i < image.size() / 4; i++, x++) {
-			if (!virtualPain && image[(i * 4) + 3] > 0) {
-				switch (ms().nintendoLogoColor) {
-					default: // Gray (Original color)
-						break;
-					case 1: // Red (Current color)
-						image[(i * 4) + 0] = 0xFF;
-						image[(i * 4) + 1] = 0;
-						image[(i * 4) + 2] = 0;
-						break;
-					case 2: // Blue (Past JAP color)
-						image[(i * 4) + 0] = 0;
-						image[(i * 4) + 1] = 0;
-						image[(i * 4) + 2] = 0xFF;
-						break;
-					case 3: // Magneta (GBA color)
-						image[(i * 4) + 0] = 0xFF;
-						image[(i * 4) + 1] = 0;
-						image[(i * 4) + 2] = 0xFF;
-						break;
-				}
-			}
-			u16 color = image[i * 4] >> 3 | (image[(i * 4) + 1] >> 3) << 5 | (image[(i * 4) + 2] >> 3) << 10 | (image[(i * 4) + 3] > 0) << 15;
-			if (colorTable) {
-				color = (color & 0x8000) | (colorTable[color % 0x8000] & 0x7FFF);
-			}
-
-			if (x >= width) {
-				x = 0;
-				y++;
-			}
-
-			gfx[x >= 64][y * 64 + (x % 64)] = color;
-		}
-
-		oamUpdate(&oamMain);
-	}
-
-	if (!custom && !virtualPain) {
-		const u16 white = colorTable ? colorTable[0x7FFF] : 0xFFFF;
-		BG_PALETTE[0] = white;
-		BG_PALETTE_SUB[0] = white;
-
-		controlBottomBright = false;
-		fadeType = false;
-		screenBrightness = 0;
-		swiWaitForVBlank();
-		controlTopBright = false;
-		screenBrightness = 25;
-		swiWaitForVBlank();
-	}
 
 	controlBottomBright = true;
 	fadeType = true;
 
-	// If both will loop forever, show for 3s or until button press
+	//  Track if music started
+	static bool musicStarted = false;
+
 	if ((!custom && ms().macroMode) || (splash.loopForever() && healthSafety.loopForever())) {
 		for (int i = 0; i < 60 * 3 && !keysDown(); i++) {
 			swiWaitForVBlank();
-			//loadROMselectAsynch();
 			scanKeys();
-			// removed ! on custom & frame count to 3 and now plays title.wav
-			if (custom && splash.currentFrame() == 3)
+
+			// Start custom music once
+			if (custom && !musicStarted && splash.currentFrame() >= 3) {
 				snd().beginStream();
+				musicStarted = true;
+			}
 		}
 	} else {
 		u16 pressed = 0;
 		while (!(splash.finished() && healthSafety.finished()) && !(pressed & KEY_START)) {
 			swiWaitForVBlank();
-			//loadROMselectAsynch();
 			scanKeys();
 			pressed = keysDown();
 			pressed &= ~KEY_LID;
+
+			//  Start custom music once
+			if (custom && !musicStarted && splash.currentFrame() >= 2) {
+				snd().beginStream();
+				musicStarted = true;
+			}
 
 			if (splash.waitingForInput()) {
 				if (!custom && healthSafety.paused() && !ms().dsiSplashAutoSkip)
@@ -197,9 +136,14 @@ void bootSplashDSi(void) {
 	fadeType = false;
 	for (int i = 0; i < 25; i++) { swiWaitForVBlank(); }
 
-	timerStop(0);
-}
+	//  STOP audio cleanly (prevents crash)
+	if (custom) {
+		snd().stopStream();
+	}
 
+	// FIX: match timerStart(1)
+	timerStop(1);
+}
 void bootSplashInit(void) {
 	videoSetMode(MODE_5_2D);
 	videoSetModeSub(MODE_5_2D);
